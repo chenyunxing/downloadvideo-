@@ -22,3 +22,15 @@ def change_bytes(s):
         return s.encode('utf-8')
     else:
         return "error,arg not str or bytes"
+# 定义一个由字符串类型时间转化为描述的函数
+def time_to_second(time):
+    '''
+        如传入00:12:06
+        将会转化为12*60+6即726
+    '''
+    time = time.strip()
+    time = time.split(':')
+    second = 0
+    for i in range(len(time)):
+        second = second + float(time[len(time) - i - 1]) * (60**i)
+    return second

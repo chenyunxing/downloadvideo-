@@ -2,14 +2,32 @@
 import tools
 import subprocess
 import time
-url  = 'https://xxxxxx/index.m3u8'
-filename = str(time.time()) + '.mp4'
+import re
+# 网站链接自己填写
+url  = 'https://xxxxx/index.m3u8'
+
 # 第一条命令获取视频相关信息,主要希望获取到视频时长参数
-# cmd = "ffmpeg -i " + url
-cmd = "ffmpeg -i " + url + ' ' + filename
-# Duration: 00:01:02.49, start: 0.000000, bitrate: 865 kb/s
+cmd = "ffmpeg -i " + url
 process = subprocess.Popen(cmd, stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
-# process.wait()
+return_str =process.stderr.read()
+return_str = return_str.decode()
+# 获取视频时长
+all_time_pattern = re.compile(r'Duration:[ ]*\d+:\d+:\d+.\d+')
+temp = all_time_pattern.findall(return_str)
+temp = temp[0].split(':')
+temp.pop(0)
+temp = ':'.join(temp).strip()
+all_time = tools.time_to_second(temp) # 视频总时间的变量
+print("视频总时长：%.2f秒"%all_time)
+# 下载区
+filename = str(time.time()) + '.mp4'
+cmd = "ffmpeg -i " + url + ' ' +filename
+process = subprocess.Popen(cmd, stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
+# 正则表达式用于获取时间与对应下载速度
+time_pattern = re.compile(r'time=\d+:\d+:\d+.\d+')
+speed_pattern = re.compile(r'speed=[ ]*\S+')
+# 记录目前下载进度的变量,由于下载中可能网络中断，导致输出不包含已下载时间，因此需要记录到此刻前的下载进度
+save_time = 0
 while 1:
     line = process.stderr.readline()
     # 这里发生十分奇怪的事情，如果把这里的byte类型字符进行decode()，原本输出的关于下载进度的信息就会删除，就是最后一行的下载信息，会被清除
@@ -22,21 +40,25 @@ while 1:
     # 因此这里采用之间str的方法，然后删除b'这种符号,然后重新进行解码
     line_str = str(line)
     line_str = line_str[2:-1]
-    with open('log.txt','ab') as f:
-        f.write(line)
     # line2 = tools.change_str(line2)
     if line != '' and process.poll() is None:
-        print(line_str)
-        print('********************************')
-        # print(line2)
+        time = time_pattern.findall(line_str)
+        speed = speed_pattern.findall(line_str)
+        if time:
+            now_time = time[-1].strip()
+            now_time = now_time.split('=')[-1].strip()
+            now_time = tools.time_to_second(now_time)
+            save_time = now_time
+        # 进度
+        percentage = save_time/all_time
+        print("进度：%.2f%%"%(percentage*100))
+        # 剩余时间
+        if speed:
+            speed = speed[-1].strip()
+            speed = speed.split('=')[-1].strip()[0:-1]
+            speed = float(speed)
+            remaining_time = (all_time - save_time)/speed
+            print("还需%.2f秒下载"%remaining_time)
     else:
         break
-# out = process.stderr.read()
-# out = tools.change_str(out)
-# out = out.split('\r\n')
-# print(out)
-# for i in out:
-#     print(i)
-# temp = process.communicate(b'q')
-# sleep(2)
 process.kill()
