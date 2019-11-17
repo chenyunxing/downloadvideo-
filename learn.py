@@ -4,7 +4,7 @@ import subprocess
 import time
 import re
 # 网站链接自己填写
-url  = 'https://xxxxx/index.m3u8'
+url  = 'https://xxx/index.m3u8'
 
 # 第一条命令获取视频相关信息,主要希望获取到视频时长参数
 cmd = "ffmpeg -i " + url
@@ -49,16 +49,19 @@ while 1:
             now_time = now_time.split('=')[-1].strip()
             now_time = tools.time_to_second(now_time)
             save_time = now_time
-        # 进度
-        percentage = save_time/all_time
-        print("进度：%.2f%%"%(percentage*100))
-        # 剩余时间
-        if speed:
-            speed = speed[-1].strip()
-            speed = speed.split('=')[-1].strip()[0:-1]
-            speed = float(speed)
-            remaining_time = (all_time - save_time)/speed
-            print("还需%.2f秒下载"%remaining_time)
+        if save_time <= all_time:
+            # 进度
+            percentage = save_time/all_time
+            print("进度：%.2f%%"%(percentage*100))
+            # 剩余时间
+            if speed:
+                speed = speed[-1].strip()
+                speed = speed.split('=')[-1].strip()[0:-1]
+                speed = float(speed)
+                remaining_time = (all_time - save_time)/speed
+                print("还需%.2f秒下载"%remaining_time)
+        else:
+            print("下载时长超过获取的总时长，剩余下载时间不明！")
     else:
         break
 process.kill()
