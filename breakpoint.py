@@ -26,12 +26,21 @@ def print_info(process):
     speed_pattern = re.compile(r'speed=[ ]*\S+')
     # 记录目前下载进度的变量,由于下载中可能网络中断，导致输出不包含已下载时间，因此需要记录到此刻前的下载进度
     save_time = 0
-    while 1:
+    while process.poll() is None:
         if time.time() - old_time < 1:
             continue
         else:
             old_time = time.time()
-        line = process.stderr.readline()
+        try:
+            line = process.stderr.readline()
+        except Exception as e:
+            if process.poll() is None:
+                print('thread is exit')
+                break
+            else:
+                # 输出报错
+                pass
+
         # 这里发生十分奇怪的事情，如果把这里的byte类型字符进行decode()，原本输出的关于下载进度的信息就会删除，就是最后一行的下载信息，会被清除
         # 两者之间输出的对比就是
         '''
@@ -68,11 +77,13 @@ def print_info(process):
             break
     process.kill()
 # 把需要输出的函数人到这里，目前这里设置为多线程输出,主线程只负责输入
-def output(process):
+def output(cmd):
+    process = subprocess.Popen(cmd, stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
     t = threading.Thread(target=print_info ,args=(process,))
     t.start()
+    return process
 # 网站链接自己填写
-url  = 'https://xxxx.m3u8'
+url  = 'https://qxxx/index.m3u8'
 # 第一条命令获取视频相关信息,主要希望获取到视频时长参数
 cmd_str = "ffmpeg -i " + url
 process = cmd(cmd_str)
@@ -89,12 +100,14 @@ all_time = tools.time_to_second(temp) # 视频总时间的变量
 print("视频总时长：%.2f秒"%all_time)
 # 下载区
 filename = str(time.time()) + '.mp4'
-cmd = "ffmpeg -i " + url + ' ' +filename
-process = subprocess.Popen(cmd, stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
-output(process)
+cmd = "ffmpeg -i " + url + ' ' + filename
+process = output(cmd)
 while 1:
     get_cmd = input()
-    if get_cmd == 'exit':
+    if get_cmd == 'q':
+        process.communicate(b'q')
+        time.sleep(2)
+        process.kill()
         break
     else:
         print(get_cmd)
